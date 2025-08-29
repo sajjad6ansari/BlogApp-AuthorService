@@ -79,3 +79,23 @@ export const updateBlog=TryCatchHandler(async(req:AuthenticatedRequest, res)=>{
 
   res.status(200).json({ message: "Blog updated successfully", blog: updatedBlog[0] }); 
 });
+
+export const deleteBlog=TryCatchHandler(async(req:AuthenticatedRequest, res)=>{
+  const {id}=req.params;
+
+ const existingBlog=await sql`SELECT * FROM blogs WHERE id=${id}`; 
+   if(!existingBlog.length){
+    res.status(404).json({message:"Blog not found"});
+    return;
+  }
+  if(existingBlog[0].author !== req.user?._id){
+    res.status(403).json({message:"Forbidden: You are not the author of this blog"});
+    return;
+  }
+  await cloudinary.uploader.destroy(`blogs/${existingBlog[0].image.split("/").pop()?.split(".")[0]}`);
+  await sql`DELETE FROM comments WHERE blog_id=${id}`;
+  await sql`DELETE FROM savedblogs WHERE blog_id=${id}`;
+  await sql`DELETE FROM blogs WHERE id=${id}`;
+
+  res.status(200).json({message:"Blog deleted successfully"});
+})
